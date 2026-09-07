@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NC-11 congressional race model — Ager vs. Balkcom</title>
+<meta name="description" content="Interactive fundamentals model estimating Jamie Ager's win probability against Jennifer Balkcom in North Carolina's 11th Congressional District. Adjust the assumptions yourself.">
+<meta property="og:title" content="NC-11 congressional race model — Ager vs. Balkcom">
+<meta property="og:description" content="An adjustable fundamentals model for the 2026 NC-11 House race, with a live Monte Carlo margin simulation.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --card:#f7f6f3; --text:#0b0b0b; --text-2:#52514e; --text-3:#898781;
+    --border:#e1e0d9; --grid:#e1e0d9; --dem:#2a78d6; --rep:#e34948;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1a1a19; --card:#232322; --text:#f0efec; --text-2:#c3c2b7; --text-3:#898781;
+      --border:#383835; --grid:#2c2c2a; --dem:#3987e5; --rep:#e66767;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:2rem 1.25rem 4rem; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6;
+  }
+  .wrap{max-width:680px; margin:0 auto}
+  h1{font-size:22px; font-weight:600; margin:0 0 4px}
+  .subtitle{font-size:14px; color:var(--text-2); margin:0 0 2rem}
+  h3{font-size:16px; font-weight:600; margin:1.75rem 0 0.75rem}
+  .row{display:flex; align-items:center; gap:12px; margin:0 0 14px}
+  .row label{font-size:13px; color:var(--text-2); width:220px; flex-shrink:0}
+  .row input[type=range]{flex:1; accent-color:var(--dem)}
+  .row .val{font-size:13px; font-weight:600; width:64px; text-align:right; flex-shrink:0}
+  .stats{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:1.25rem}
+  .stat{background:var(--card); border-radius:8px; padding:1rem; text-align:center}
+  .stat-label{font-size:13px; color:var(--text-2); margin-bottom:4px}
+  .stat-value{font-size:28px; font-weight:600}
+  .chart-wrap{position:relative; height:260px; margin-bottom:1rem}
+  .compare{border-top:0.5px solid var(--border); padding:10px 0; font-size:13px; display:flex; justify-content:space-between; align-items:center}
+  .compare:first-child{border-top:none}
+  .compare-source{color:var(--text)}
+  .compare-meta{color:var(--text-2); font-size:12px; margin-top:2px}
+  .compare-val{font-weight:600; flex-shrink:0; margin-left:12px}
+  .footer{margin-top:2.5rem; padding-top:1.25rem; border-top:0.5px solid var(--border); font-size:12px; color:var(--text-3)}
+  .footer ul{margin:0.5rem 0 0; padding-left:1.1rem}
+  .footer li{margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NC-11 congressional race model</h1>
+  <p class="subtitle">Jamie Ager (D) vs. Jennifer Balkcom (R) &middot; November 3, 2026 &middot; a fundamentals-based scenario model, not a poll</p>
+
+  <div class="row"><label for="env">National environment (generic ballot)</label><input type="range" id="env" min="-5" max="15" step="0.5" value="6.6"><span class="val" id="envOut">D+6.6</span></div>
+  <div class="row"><label for="lean">District lean vs. the nation</label><input type="range" id="lean" min="4" max="14" step="0.5" value="8.5"><span class="val" id="leanOut">R+8.5</span></div>
+  <div class="row"><label for="open">Open-seat / candidate quality</label><input type="range" id="open" min="-6" max="6" step="0.5" value="2"><span class="val" id="openOut">D+2.0</span></div>
+  <div class="row"><label for="fund">Fundraising edge</label><input type="range" id="fund" min="-6" max="6" step="0.5" value="3"><span class="val" id="fundOut">D+3.0</span></div>
+  <div class="row"><label for="local">Local trend / Helene frustration</label><input type="range" id="local" min="-4" max="4" step="0.5" value="1.5"><span class="val" id="localOut">D+1.5</span></div>
+
+  <h3>Projected outcome</h3>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Ager (D) win probability</div><div class="stat-value" id="pAger" style="color:var(--dem)">--</div></div>
+    <div class="stat"><div class="stat-label">Balkcom (R) win probability</div><div class="stat-value" id="pBalkcom" style="color:var(--rep)">--</div></div>
+  </div>
+
+  <div class="chart-wrap">
+    <canvas id="hist" role="img" aria-label="Histogram of simulated Democratic margin outcomes across five thousand simulations, showing the spread of possible results around the projected margin">Simulated margin distribution updates live with the sliders above.</canvas>
+  </div>
+
+  <h3>How this compares</h3>
+  <div id="compare"></div>
+
+  <div class="footer">
+    <strong>Assumptions and caveats</strong>
+    <ul>
+      <li>This is a scenario model built from public fundamentals (2024 presidential result, generic-ballot polling, fundraising reports, race ratings), not a poll of this specific race &mdash; treat the probabilities as illustrative, not predictive.</li>
+      <li>District lean defaults to R+8.5: Trump carried NC-11 by about 10 points in 2024 against a national popular-vote win of roughly 1.5 points.</li>
+      <li>National environment defaults to the September 2026 generic-ballot average (roughly D+6 to D+7.6 depending on aggregator).</li>
+      <li>Open-seat, fundraising, and local-trend sliders are judgment calls reflecting Chuck Edwards' August 2026 withdrawal after a House Ethics Committee censure recommendation, Jamie Ager's reported cash-on-hand advantage, and the district's decade-long leftward drift plus Hurricane Helene recovery frustration &mdash; adjust freely.</li>
+      <li>Comparison figures (Kalshi, Cook Political Report, Sabato's Crystal Ball) are snapshots from late August 2026 and will have moved by the time you read this.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function gaussian(sd){
+  var u = 1 - Math.random();
+  var v = Math.random();
+  var n = Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+  return n*sd;
+}
+function isDarkMode(){
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function clampVal(x,lo,hi){ return Math.max(lo,Math.min(hi,x)); }
+
+var chart = null;
+function initChart(){
+  var dark = isDarkMode();
+  var ctx = document.getElementById('hist');
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderRadius: 2, barPercentage: 1.0, categoryPercentage: 1.0 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display:false }, tooltip: { callbacks: { label: function(c){ return Math.round(c.raw*10)/10 + '% of simulations'; } } } },
+      scales: {
+        x: { title:{ display:true, text:'Democratic margin (points)', color: dark ? '#c3c2b7' : '#52514e' }, ticks:{ color: dark ? '#c3c2b7' : '#52514e', maxRotation:0, autoSkip:true, maxTicksLimit:9 }, grid:{ display:false } },
+        y: { title:{ display:true, text:'Share of simulations', color: dark ? '#c3c2b7' : '#52514e' }, ticks:{ color: dark ? '#c3c2b7' : '#52514e', callback:function(v){ return v+'%'; } }, grid:{ color: dark ? '#2c2c2a' : '#e1e0d9' } }
+      }
+    }
+  });
+}
+
+function render(){
+  var env = parseFloat(document.getElementById('env').value);
+  var lean = parseFloat(document.getElementById('lean').value);
+  var openAdj = parseFloat(document.getElementById('open').value);
+  var fundAdj = parseFloat(document.getElementById('fund').value);
+  var localAdj = parseFloat(document.getElementById('local').value);
+
+  document.getElementById('envOut').textContent = (env>=0?'D+':'R+')+Math.abs(env).toFixed(1);
+  document.getElementById('leanOut').textContent = 'R+'+lean.toFixed(1);
+  document.getElementById('openOut').textContent = (openAdj>=0?'D+':'R+')+Math.abs(openAdj).toFixed(1);
+  document.getElementById('fundOut').textContent = (fundAdj>=0?'D+':'R+')+Math.abs(fundAdj).toFixed(1);
+  document.getElementById('localOut').textContent = (localAdj>=0?'D+':'R+')+Math.abs(localAdj).toFixed(1);
+
+  var predictedMargin = env - lean + openAdj + fundAdj + localAdj;
+  var sd = 7;
+  var N = 5000;
+  var margins = [];
+  var dWins = 0;
+  for (var i=0;i<N;i++){
+    var m = predictedMargin + gaussian(sd);
+    margins.push(m);
+    if (m>0) dWins++;
+  }
+  var pAger = dWins/N;
+  document.getElementById('pAger').textContent = Math.round(pAger*100)+'%';
+  document.getElementById('pBalkcom').textContent = Math.round((1-pAger)*100)+'%';
+
+  var binWidth = 3;
+  var minM = -30, maxM = 30;
+  var bins = [];
+  for (var b=minM;b<maxM;b+=binWidth){ bins.push({lo:b,hi:b+binWidth,count:0}); }
+  margins.forEach(function(m){
+    var idx = Math.floor((clampVal(m,minM,maxM-0.01)-minM)/binWidth);
+    if (idx>=0 && idx<bins.length) bins[idx].count++;
+  });
+
+  var dark = isDarkMode();
+  var repColor = dark ? '#e66767' : '#e34948';
+  var demColor = dark ? '#3987e5' : '#2a78d6';
+
+  chart.data.labels = bins.map(function(bn){ return Math.round((bn.lo+bn.hi)/2); });
+  chart.data.datasets[0].data = bins.map(function(bn){ return Math.round((bn.count/N)*1000)/10; });
+  chart.data.datasets[0].backgroundColor = bins.map(function(bn){ return (bn.lo+bn.hi)/2 >=0 ? demColor : repColor; });
+  chart.options.scales.x.title.color = dark ? '#c3c2b7' : '#52514e';
+  chart.options.scales.x.ticks.color = dark ? '#c3c2b7' : '#52514e';
+  chart.options.scales.y.title.color = dark ? '#c3c2b7' : '#52514e';
+  chart.options.scales.y.ticks.color = dark ? '#c3c2b7' : '#52514e';
+  chart.options.scales.y.grid.color = dark ? '#2c2c2a' : '#e1e0d9';
+  chart.update();
+
+  var compareHtml = '';
+  compareHtml += '<div class="compare"><div><div class="compare-source">This model</div><div class="compare-meta">Fundamentals blend, updates with sliders</div></div><div class="compare-val">Ager '+Math.round(pAger*100)+'%</div></div>';
+  compareHtml += '<div class="compare"><div><div class="compare-source">Kalshi prediction market</div><div class="compare-meta">Real-money odds, late-August 2026 snapshot</div></div><div class="compare-val">Ager 69%</div></div>';
+  compareHtml += '<div class="compare"><div><div class="compare-source">Cook Political Report</div><div class="compare-meta">Qualitative rating</div></div><div class="compare-val">Toss-up</div></div>';
+  compareHtml += '<div class="compare"><div><div class="compare-source">Sabato&rsquo;s Crystal Ball</div><div class="compare-meta">Qualitative rating</div></div><div class="compare-val">Toss-up</div></div>';
+  document.getElementById('compare').innerHTML = compareHtml;
+}
+
+initChart();
+render();
+['env','lean','open','fund','local'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', render);
+});
+</script>
+</body>
+</html>
